@@ -4,6 +4,7 @@ const ctx = canvas.getContext("2d");
 canvas.addEventListener("click", handleClick)
 slider.addEventListener("input", updateTs)
 canvas.addEventListener("mousemove", handleMovement)
+canvas.addEventListener("mousedown", handleMouseDown)
 
 // -------- Functions ---------
 function drawCircle(ctx, x, y, radius, color = "black") {
@@ -14,6 +15,10 @@ function drawCircle(ctx, x, y, radius, color = "black") {
 }
 
 function handleMovement(event) {
+    const rect = canvas.getBoundingClientRect();
+    mouseX = event.clientX - rect.left;
+    mouseY = event.clientY - rect.top;
+
     mouseSpeed = new Vector(event.movementX, event.movementY);
 }
 
@@ -27,7 +32,14 @@ function handleClick(event) {
     let vel = new Vector(mouseSpeed.x, mouseSpeed.y); //Vector(Math.random()-0.5, Math.random()-0.5);
     let color = "blue";
 
+    vel.scale(2)
+
     bodies.push(new Body(radius, pos, vel, color));
+    mouseDown = false;
+}
+
+function handleMouseDown(event) {
+    mouseDown = true;
 }
 
 // --------- Classes ---------
@@ -134,6 +146,10 @@ function update() {
     universe.step()
     universe.draw()
 
+    if (mouseDown){
+        drawCircle(ctx, mouseX, mouseY, 25, "blue")
+    }
+
     requestAnimationFrame(update)
 }
 
@@ -142,6 +158,7 @@ function updateTs() {
 }
 
 let mouseSpeed = new Vector(0,0);
+let mouseDown = false;
 
 
 let dt = 1;
