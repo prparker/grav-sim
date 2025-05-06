@@ -1,6 +1,8 @@
 const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
 
+canvas.addEventListener("click", handleClick)
+
 // -------- Functions ---------
 function drawCircle(ctx, x, y, radius, color = "black") {
     ctx.beginPath();
@@ -16,7 +18,7 @@ function handleClick(event) {
 
     let radius = 25;
     let pos = new Vector(x, y)
-    let vel = new Vector(Math.random()-0.5, Math.random()-0.5);
+    let vel = new Vector(0,0) //Vector(Math.random()-0.5, Math.random()-0.5);
     let color = "blue";
 
     bodies.push(new Body(radius, pos, vel, color));
@@ -71,9 +73,9 @@ class Body {
 
     step() {
         let dv = this.acc.multiply(dt);
-        let dx = this.vel.multiply(dt);
-
         this.vel.add(dv);
+
+        let dx = this.vel.multiply(dt);
         this.pos.add(dx);
     }
 }
@@ -119,6 +121,7 @@ class Universe {
 
 }
 
+// -------- App Logic --------
 function update() {
     ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
 
@@ -127,8 +130,6 @@ function update() {
 
     requestAnimationFrame(update)
 }
-
-canvas.addEventListener("click", handleClick)
 
 let dt = 1;
 let G = 0.000000001;
@@ -142,12 +143,3 @@ universe.addBody(body1);
 universe.addBody(body2);
 
 update()
-
-
-
-
-
-// listen for clicks
-// add new body to entity list
-// calculate positions
-// draw
