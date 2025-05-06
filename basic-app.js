@@ -20,6 +20,7 @@ function handleMovement(event) {
     mouseY = event.clientY - rect.top;
 
     mouseSpeed = new Vector(event.movementX, event.movementY);
+    if (mouseSpeed.mag() < 1.05) {mouseSpeed.scale(0)}
 }
 
 function handleClick(event) {
