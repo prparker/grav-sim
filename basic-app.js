@@ -2,6 +2,8 @@ const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
 
 canvas.addEventListener("click", handleClick)
+slider.addEventListener("input", updateTs)
+canvas.addEventListener("mousemove", handleMovement)
 
 // -------- Functions ---------
 function drawCircle(ctx, x, y, radius, color = "black") {
@@ -11,6 +13,10 @@ function drawCircle(ctx, x, y, radius, color = "black") {
     ctx.fill();
 }
 
+function handleMovement(event) {
+    mouseSpeed = new Vector(event.movementX, event.movementY);
+}
+
 function handleClick(event) {
     const rect = canvas.getBoundingClientRect(); // Access the canvas element
     const x = event.clientX - rect.left;
@@ -18,7 +24,7 @@ function handleClick(event) {
 
     let radius = 25;
     let pos = new Vector(x, y)
-    let vel = new Vector(0,0) //Vector(Math.random()-0.5, Math.random()-0.5);
+    let vel = new Vector(mouseSpeed.x, mouseSpeed.y); //Vector(Math.random()-0.5, Math.random()-0.5);
     let color = "blue";
 
     bodies.push(new Body(radius, pos, vel, color));
@@ -130,6 +136,13 @@ function update() {
 
     requestAnimationFrame(update)
 }
+
+function updateTs() {
+    dt = slider.value;
+}
+
+let mouseSpeed = new Vector(0,0);
+
 
 let dt = 1;
 let G = 0.000000001;
