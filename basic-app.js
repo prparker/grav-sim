@@ -167,9 +167,11 @@ let G = 0.000000001;
 let bodies = [];
 let universe = new Universe();
 
+body0 = new Body(0, new Vector(400, 400), new Vector(0, 0), "white"); //invisible
 body1 = new Body(50, new Vector(500, 400), new Vector(0, -1), "black");
 body2 = new Body(50, new Vector(300, 400), new Vector(0, 1), "black");
 
+universe.addBody(body0);
 universe.addBody(body1);
 universe.addBody(body2);
 
