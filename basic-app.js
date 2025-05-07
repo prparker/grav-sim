@@ -2,7 +2,8 @@ const canvas = document.getElementById("myCanvas");
 const ctx = canvas.getContext("2d");
 
 canvas.addEventListener("click", handleClick)
-slider.addEventListener("input", updateTs)
+timeSlider.addEventListener("input", updateTs)
+sizeSlider.addEventListener("input", updateSize)
 canvas.addEventListener("mousemove", handleMovement)
 canvas.addEventListener("mousedown", handleMouseDown)
 
@@ -20,7 +21,7 @@ function handleMovement(event) {
     mouseY = event.clientY - rect.top;
 
     mouseSpeed = new Vector(event.movementX, event.movementY);
-    if (mouseSpeed.mag() < 1.05) {mouseSpeed.scale(0)}
+    if (mouseSpeed.mag() <= 1.414) {mouseSpeed.scale(0)}
 }
 
 function handleClick(event) {
@@ -28,14 +29,13 @@ function handleClick(event) {
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
-    let radius = 25;
     let pos = new Vector(x, y)
     let vel = new Vector(mouseSpeed.x, mouseSpeed.y); //Vector(Math.random()-0.5, Math.random()-0.5);
     let color = "blue";
 
-    vel.scale(2)
+    vel.scale(0.25)
 
-    bodies.push(new Body(radius, pos, vel, color));
+    bodies.push(new Body(clickRadius, pos, vel, color));
     mouseDown = false;
 }
 
@@ -148,31 +148,31 @@ function update() {
     universe.draw()
 
     if (mouseDown){
-        drawCircle(ctx, mouseX, mouseY, 25, "blue")
+        drawCircle(ctx, mouseX, mouseY, clickRadius, "blue")
     }
 
     requestAnimationFrame(update)
 }
 
 function updateTs() {
-    dt = slider.value;
+    dt = timeSlider.value;
+}
+function updateSize() {
+    clickRadius = sizeSlider.value;
 }
 
 let mouseSpeed = new Vector(0,0);
 let mouseDown = false;
 
+let clickRadius = 5
 
 let dt = 1;
 let G = 0.000000001;
 let bodies = [];
 let universe = new Universe();
 
-body0 = new Body(0, new Vector(400, 400), new Vector(0, 0), "white"); //invisible
-body1 = new Body(50, new Vector(500, 400), new Vector(0, -1), "black");
-body2 = new Body(50, new Vector(300, 400), new Vector(0, 1), "black");
+body0 = new Body(25, new Vector(400, 400), new Vector(0, 0), "black"); 
 
 universe.addBody(body0);
-universe.addBody(body1);
-universe.addBody(body2);
 
 update()
