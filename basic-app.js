@@ -62,35 +62,93 @@ class Body {
     applyAcceleration(accel) {
         this.acceleration.add(accel);
     }
+
+    static combine(bodyA, bodyB) {
+        const totalMass = bodyA.mass + bodyB.mass;
+
+        // Mass-weighted position and velocity
+        const newPos = new Vector(
+            (bodyA.position.x * bodyA.mass + bodyB.position.x * bodyB.mass) / totalMass,
+            (bodyA.position.y * bodyA.mass + bodyB.position.y * bodyB.mass) / totalMass
+        );
+
+        const newVel = new Vector(
+            (bodyA.velocity.x * bodyA.mass + bodyB.velocity.x * bodyB.mass) / totalMass,
+            (bodyA.velocity.y * bodyA.mass + bodyB.velocity.y * bodyB.mass) / totalMass
+        );
+
+        const newRadius = ((3 * totalMass) / Math.PI) ** (1 / 3);
+        const newColor = bodyA.color; // Arbitrary or blend it
+
+        return new Body(newRadius, newPos, newVel, newColor);
+    }
 }
 
 // ----------- Universe Simulation ----------
 class Universe {
     static G = 1e-9; // Gravity constant
+    #numBodies = 0;
 
     constructor() {
-        this.bodies = [];
+        this.bodies = new Map();
     }
 
     addBody(body) {
-        this.bodies.push(body);
+        this.#numBodies++;
+        const bodyID = this.#numBodies;
+        this.bodies.set(bodyID, body);
+    }
+
+    rmBody(bodyID) {
+        this.bodies.delete(bodyID);
     }
 
     computeForces() {
         const G = Universe.G;
-        for (let i = 0; i < this.bodies.length; i++) {
-            this.bodies[i].resetAcceleration();
-            for (let j = 0; j < this.bodies.length; j++) {
-                if (i === j) continue;
-
+    
+        // Reset acceleration for all bodies
+        for (const body of this.bodies.values()) {
+            body.resetAcceleration();
+        }
+    
+        // Apply gravitational force between all pairs
+        for (const [idA, bodyA] of this.bodies.entries()) {
+            for (const [idB, bodyB] of this.bodies.entries()) {
+                if (idA === idB) continue; // Skip self
+    
                 const diff = new Vector(
-                    this.bodies[j].position.x - this.bodies[i].position.x,
-                    this.bodies[j].position.y - this.bodies[i].position.y
+                    bodyB.position.x - bodyA.position.x,
+                    bodyB.position.y - bodyA.position.y
                 );
-
+    
                 const accel = new Vector(diff.x, diff.y);
-                accel.scale(G * this.bodies[j].mass);
-                this.bodies[i].applyAcceleration(accel);
+                accel.scale(G * bodyB.mass);
+    
+                bodyA.applyAcceleration(accel);
+            }
+        }
+    }
+
+    computeContact(contact) {
+        if (contact) {
+            outer:
+            for (const [idA, bodyA] of this.bodies.entries()) {
+                for (const [idB, bodyB] of this.bodies.entries()) {
+                    if (idA === idB) continue; // Skip self
+        
+                    const diff = new Vector(
+                        bodyB.position.x - bodyA.position.x,
+                        bodyB.position.y - bodyA.position.y
+                    );
+        
+                    if (diff.mag() <= (bodyA.radius + bodyB.radius*(4/7))) {
+                        const newBody = Body.combine(bodyA, bodyB);
+                        this.addBody(newBody);
+                        this.rmBody(idA);
+                        this.rmBody(idB);
+                        continue outer;
+                    }
+                }
             }
         }
     }
@@ -107,16 +165,18 @@ class Universe {
 
 // ----------- Main Simulation App ----------
 class SimulationApp {
-    constructor(canvasId, timeSliderId, sizeSliderId) {
+    constructor(canvasId, timeSliderId, sizeSliderId, contactBoxId) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext("2d");
 
         this.timeSlider = document.getElementById(timeSliderId);
         this.sizeSlider = document.getElementById(sizeSliderId);
+        this.contactBox = document.getElementById(contactBoxId);
 
         this.universe = new Universe();
         this.dt = parseFloat(this.timeSlider.value || 1);
         this.clickRadius = parseFloat(this.sizeSlider.value || 5);
+        this.contact = true;
 
         this.mouseSpeed = new Vector(0, 0);
         this.mouseDown = false;
@@ -130,10 +190,24 @@ class SimulationApp {
         this.bindEvents();
 
         // Initial body
-        const centerBody = new Body(25, new Vector(400, 400), new Vector(0, 0), "black");
-        this.universe.addBody(centerBody);
+        // const centerBody = new Body(25, new Vector(400, 400), new Vector(0, 0), "black");
+        // this.universe.addBody(centerBody);
+
+        for (let i = 1; i < 500; i++) {
+            let size = Math.floor(Math.random()*3)+1;
+            let pos = new Vector(400+this.getRand()*(800), 400+this.getRand()*(800));
+            let vel = new Vector(this.getRand()*0.2, this.getRand()*0.2);
+
+            let body = new Body(size, pos, vel, "black");
+            this.universe.addBody(body);
+        }
+        
 
         this.animate();
+    }
+
+    getRand() { 
+        return (Math.random() - 0.5)*2;
     }
 
     bindEvents() {
@@ -149,6 +223,10 @@ class SimulationApp {
         this.sizeSlider.addEventListener("input", () => {
             this.clickRadius = parseFloat(this.sizeSlider.value);
         });
+
+        this.contactBox.addEventListener("change", () => {
+            this.contact = this.contactBox.checked
+        })
     }
 
     handleClick(event) {
@@ -183,6 +261,7 @@ class SimulationApp {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.universe.step(this.dt);
+        this.universe.computeContact(this.contact);
         this.universe.draw(this.ctx);
 
         if (this.mouseDown) {
@@ -202,5 +281,5 @@ class SimulationApp {
 
 // ----------- Initialize App ----------
 window.onload = () => {
-    new SimulationApp("myCanvas", "timeSlider", "sizeSlider");
+    new SimulationApp("myCanvas", "timeSlider", "sizeSlider", "contactBox");
 };
