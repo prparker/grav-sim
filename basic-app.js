@@ -59,8 +59,8 @@ class Body {
         this.acceleration = new Vector(0, 0);
     }
 
-    applyForce(force) {
-        this.acceleration.add(force);
+    applyAcceleration(accel) {
+        this.acceleration.add(accel);
     }
 }
 
@@ -77,7 +77,7 @@ class Universe {
     }
 
     computeForces() {
-        const G = Universe.G
+        const G = Universe.G;
         for (let i = 0; i < this.bodies.length; i++) {
             this.bodies[i].resetAcceleration();
             for (let j = 0; j < this.bodies.length; j++) {
@@ -88,9 +88,9 @@ class Universe {
                     this.bodies[j].position.y - this.bodies[i].position.y
                 );
 
-                const force = new Vector(diff.x, diff.y);
-                force.scale(G * this.bodies[j].mass);
-                this.bodies[i].applyForce(force);
+                const accel = new Vector(diff.x, diff.y);
+                accel.scale(G * this.bodies[j].mass);
+                this.bodies[i].applyAcceleration(accel);
             }
         }
     }
