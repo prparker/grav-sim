@@ -1,178 +1,206 @@
-const canvas = document.getElementById("myCanvas");
-const ctx = canvas.getContext("2d");
-
-canvas.addEventListener("click", handleClick)
-timeSlider.addEventListener("input", updateTs)
-sizeSlider.addEventListener("input", updateSize)
-canvas.addEventListener("mousemove", handleMovement)
-canvas.addEventListener("mousedown", handleMouseDown)
-
-// -------- Functions ---------
-function drawCircle(ctx, x, y, radius, color = "black") {
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-}
-
-function handleMovement(event) {
-    const rect = canvas.getBoundingClientRect();
-    mouseX = event.clientX - rect.left;
-    mouseY = event.clientY - rect.top;
-
-    mouseSpeed = new Vector(event.movementX, event.movementY);
-    if (mouseSpeed.mag() <= 1.414) {mouseSpeed.scale(0)}
-}
-
-function handleClick(event) {
-    const rect = canvas.getBoundingClientRect(); // Access the canvas element
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-
-    let pos = new Vector(x, y)
-    let vel = new Vector(mouseSpeed.x, mouseSpeed.y); //Vector(Math.random()-0.5, Math.random()-0.5);
-    let color = "blue";
-
-    vel.scale(0.25)
-
-    bodies.push(new Body(clickRadius, pos, vel, color));
-    mouseDown = false;
-}
-
-function handleMouseDown(event) {
-    mouseDown = true;
-}
-
-// --------- Classes ---------
+// ----------- Utility Classes ----------
 class Vector {
-    constructor(x,y) {
+    constructor(x, y) {
         this.x = x;
         this.y = y;
     }
-    
-    add(other){
-        //return new Vector(this.x + other.x, this.y + other.y);
+
+    add(other) {
         this.x += other.x;
         this.y += other.y;
     }
 
-    sub(other){
-        //return new Vector(this.x + other.x, this.y + other.y);
+    sub(other) {
         this.x -= other.x;
         this.y -= other.y;
     }
 
     mag() {
-        return Math.sqrt(this.x**2 + this.y**2);
+        return Math.sqrt(this.x ** 2 + this.y ** 2);
     }
 
-    multiply(scalar){
-        return new Vector(this.x*scalar, this.y*scalar);
+    multiply(scalar) {
+        return new Vector(this.x * scalar, this.y * scalar);
     }
 
-    scale(scalar){
+    scale(scalar) {
         this.x *= scalar;
         this.y *= scalar;
     }
 }
 
+// ----------- Physics Body Class ----------
 class Body {
-    constructor(radius, pos, vel, color) {
-        this.pos = pos;
-        this.vel = vel;
-        this.acc = new Vector(0,0);
+    constructor(radius, position, velocity, color = "black") {
         this.radius = radius;
+        this.position = position;
+        this.velocity = velocity;
+        this.acceleration = new Vector(0, 0);
         this.color = color;
-        this.mass = 1/3*Math.PI*radius**3;
+        this.mass = (1 / 3) * Math.PI * radius ** 3;
     }
 
-    draw() {
-        drawCircle(ctx, this.pos.x, this.pos.y, this.radius, this.color)
+    draw(ctx) {
+        ctx.beginPath();
+        ctx.arc(this.position.x, this.position.y, this.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = this.color;
+        ctx.fill();
     }
 
-    step() {
-        let dv = this.acc.multiply(dt);
-        this.vel.add(dv);
+    update(dt) {
+        const deltaV = this.acceleration.multiply(dt);
+        this.velocity.add(deltaV);
 
-        let dx = this.vel.multiply(dt);
-        this.pos.add(dx);
+        const deltaX = this.velocity.multiply(dt);
+        this.position.add(deltaX);
+    }
+
+    resetAcceleration() {
+        this.acceleration = new Vector(0, 0);
+    }
+
+    applyForce(force) {
+        this.acceleration.add(force);
     }
 }
 
+// ----------- Universe Simulation ----------
 class Universe {
-    constructor(){
-        bodies = []
+    static G = 1e-9; // Gravity constant
+
+    constructor() {
+        this.bodies = [];
     }
 
     addBody(body) {
-        bodies.push(body);
+        this.bodies.push(body);
     }
 
-    step() {
-        for (let i = 0; i < bodies.length; i++) {
-            bodies[i].step(); // Pos & Vel, Euler Method
-        }
+    computeForces() {
+        const G = Universe.G
+        for (let i = 0; i < this.bodies.length; i++) {
+            this.bodies[i].resetAcceleration();
+            for (let j = 0; j < this.bodies.length; j++) {
+                if (i === j) continue;
 
-        for (let i = 0; i < bodies.length; i++) {
-            bodies[i].acc = new Vector(0,0);
-            for (let j = 0; j < bodies.length; j++) { 
-                if (i != j) {
-                    let daccel = new Vector(0,0);
-                    let dpos = new Vector(0,0);
+                const diff = new Vector(
+                    this.bodies[j].position.x - this.bodies[i].position.x,
+                    this.bodies[j].position.y - this.bodies[i].position.y
+                );
 
-                    dpos.add(bodies[j].pos)
-                    dpos.sub(bodies[i].pos)
-
-                    daccel.add(dpos)
-                    daccel.scale(G*bodies[j].mass)
-
-                    bodies[i].acc.add(daccel)
-                }
+                const force = new Vector(diff.x, diff.y);
+                force.scale(G * this.bodies[j].mass);
+                this.bodies[i].applyForce(force);
             }
         }
     }
 
-    draw() {
-        for (let i = 0; i < bodies.length; i++) {
-            bodies[i].draw()
+    step(dt) {
+        this.computeForces();
+        this.bodies.forEach(body => body.update(dt));
+    }
+
+    draw(ctx) {
+        this.bodies.forEach(body => body.draw(ctx));
+    }
+}
+
+// ----------- Main Simulation App ----------
+class SimulationApp {
+    constructor(canvasId, timeSliderId, sizeSliderId) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext("2d");
+
+        this.timeSlider = document.getElementById(timeSliderId);
+        this.sizeSlider = document.getElementById(sizeSliderId);
+
+        this.universe = new Universe();
+        this.dt = parseFloat(this.timeSlider.value || 1);
+        this.clickRadius = parseFloat(this.sizeSlider.value || 5);
+
+        this.mouseSpeed = new Vector(0, 0);
+        this.mouseDown = false;
+        this.mouseX = 0;
+        this.mouseY = 0;
+
+        this.init();
+    }
+
+    init() {
+        this.bindEvents();
+
+        // Initial body
+        const centerBody = new Body(25, new Vector(400, 400), new Vector(0, 0), "black");
+        this.universe.addBody(centerBody);
+
+        this.animate();
+    }
+
+    bindEvents() {
+        this.canvas.addEventListener("click", this.handleClick.bind(this));
+        this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
+        this.canvas.addEventListener("mousedown", () => this.mouseDown = true);
+        this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
+
+        this.timeSlider.addEventListener("input", () => {
+            this.dt = parseFloat(this.timeSlider.value);
+        });
+
+        this.sizeSlider.addEventListener("input", () => {
+            this.clickRadius = parseFloat(this.sizeSlider.value);
+        });
+    }
+
+    handleClick(event) {
+        const { x, y } = this.getMousePos(event);
+        const pos = new Vector(x, y);
+        const vel = this.mouseSpeed.multiply(0.25);
+
+        const newBody = new Body(this.clickRadius, pos, vel, "blue");
+        this.universe.addBody(newBody);
+    }
+
+    handleMouseMove(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        this.mouseX = event.clientX - rect.left;
+        this.mouseY = event.clientY - rect.top;
+
+        this.mouseSpeed = new Vector(event.movementX, event.movementY);
+        if (this.mouseSpeed.mag() <= 1.414) {
+            this.mouseSpeed.scale(0);
         }
     }
 
-}
-
-// -------- App Logic --------
-function update() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas
-
-    universe.step()
-    universe.draw()
-
-    if (mouseDown){
-        drawCircle(ctx, mouseX, mouseY, clickRadius, "blue")
+    getMousePos(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        return {
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        };
     }
 
-    requestAnimationFrame(update)
+    animate() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.universe.step(this.dt);
+        this.universe.draw(this.ctx);
+
+        if (this.mouseDown) {
+            this.drawPreviewCircle();
+        }
+
+        requestAnimationFrame(() => this.animate());
+    }
+
+    drawPreviewCircle() {
+        this.ctx.beginPath();
+        this.ctx.arc(this.mouseX, this.mouseY, this.clickRadius, 0, 2 * Math.PI);
+        this.ctx.fillStyle = "blue";
+        this.ctx.fill();
+    }
 }
 
-function updateTs() {
-    dt = timeSlider.value;
-}
-function updateSize() {
-    clickRadius = sizeSlider.value;
-}
-
-let mouseSpeed = new Vector(0,0);
-let mouseDown = false;
-
-let clickRadius = 5
-
-let dt = 1;
-let G = 0.000000001;
-let bodies = [];
-let universe = new Universe();
-
-body0 = new Body(25, new Vector(400, 400), new Vector(0, 0), "black"); 
-
-universe.addBody(body0);
-
-update()
+// ----------- Initialize App ----------
+window.onload = () => {
+    new SimulationApp("myCanvas", "timeSlider", "sizeSlider");
+};
