@@ -86,7 +86,7 @@ class Body {
 
 // ----------- Universe Simulation ----------
 class Universe {
-    static G = 1e-9; // Gravity constant
+    static G = 0.1; // Gravity constant
     #numBodies = 0;
 
     constructor() {
@@ -110,21 +110,27 @@ class Universe {
         for (const body of this.bodies.values()) {
             body.resetAcceleration();
         }
-    
-        // Apply gravitational force between all pairs
-        for (const [idA, bodyA] of this.bodies.entries()) {
-            for (const [idB, bodyB] of this.bodies.entries()) {
-                if (idA === idB) continue; // Skip self
+
+        const entries = Array.from(this.bodies.entries());
+
+        for (let i = 0; i < entries.length; i++) {
+            const [idA, bodyA] = entries[i];
+            for (let j = i + 1; j < entries.length; j++) {
+                const [idB, bodyB] = entries[j];
     
                 const diff = new Vector(
                     bodyB.position.x - bodyA.position.x,
                     bodyB.position.y - bodyA.position.y
                 );
-    
-                const accel = new Vector(diff.x, diff.y);
-                accel.scale(G * bodyB.mass);
-    
-                bodyA.applyAcceleration(accel);
+
+                const accelOnA = new Vector(diff.x, diff.y);
+                accelOnA.scale(G * bodyB.mass / (diff.mag()**3));
+                bodyA.applyAcceleration(accelOnA);
+
+                const accelOnB = new Vector(-diff.x, -diff.y);
+                accelOnB.scale(G * bodyA.mass / (diff.mag()**3));
+                bodyB.applyAcceleration(accelOnB);
+
             }
         }
     }
