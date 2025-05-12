@@ -45,6 +45,19 @@ class Vector {
         return new Vector(vec.x / scalar, vec.y / scalar);
     }
 
+    static vecMult(v1, v2) {
+        return new Vector(v1.x * v2.x, v1.y * v2.y); 
+    }
+
+    static rotateVector(vec, angleRad) {
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    return new Vector(
+        vec.x * cos - vec.y * sin,
+        vec.x * sin + vec.y * cos
+    );
+}
+
 }
 
 // ----------- Physics Body Class ----------
@@ -56,6 +69,7 @@ class Body {
         this.acceleration = new Vector(0, 0);
         this.color = color;
         this.mass = (1 / 3) * Math.PI * radius ** 3;
+        this.controller;
     }
 
     draw(ctx) {
@@ -63,6 +77,10 @@ class Body {
         ctx.arc(this.position.x, this.position.y, this.radius, 0, 2 * Math.PI);
         ctx.fillStyle = this.color;
         ctx.fill();
+
+        if (this.controller) {
+            this.controller.draw(ctx);
+        }
     }
 
     update(dt) {
@@ -81,6 +99,11 @@ class Body {
         this.acceleration.add(accel);
     }
 
+    attachController(ctrl) {
+        this.controller = ctrl;
+        this.controller.body = this;
+    }
+
     static combine(bodyA, bodyB) {
         const totalMass = bodyA.mass + bodyB.mass;
 
@@ -96,6 +119,46 @@ class Body {
 
         const newRadius = ((3 * totalMass) / Math.PI) ** (1 / 3);
         return new Body(newRadius, newPos, newVel, bodyA.color);
+    }
+}
+
+class Controller {
+    constructor(body) {
+        this.body = body;
+        body.controller = this;
+
+        this.direction = new Vector(1, 0);
+        this.accel = new Vector(0, 0);
+    }
+
+    turnLeft() {
+        const dTheta = -Math.PI/16;
+        // const rotVec = new Vector(Math.cos(dTheta), Math.sin(dTheta));
+        this.direction = Vector.rotateVector(this.direction,dTheta);
+    }
+
+    turnRight() {
+        const dTheta = Math.PI/16;
+        // const rotVec = new Vector(Math.cos(dTheta), Math.sin(dTheta));
+        this.direction = Vector.rotateVector(this.direction,dTheta);
+    }
+
+    thrust() {
+        this.body.applyAcceleration(Vector.multiply(this.direction,-1));
+    }
+
+    draw(ctx) {
+        const position = this.body.position;
+        const length = this.body.radius*1.5; 
+        ctx.beginPath();
+        ctx.moveTo(position.x,position.y);
+        ctx.lineTo(
+            position.x + this.direction.x*length,
+            position.y + this.direction.y*length
+        );
+        ctx.strokeStyle = "red";
+        // ctx.lineWidth = 30;
+        ctx.stroke();
     }
 }
 
@@ -134,6 +197,8 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
+                //if (diff.mag() > 500) continue;
+
                 const r3 = Math.pow(diff.mag(), 3);
                 if (r3 === 0) continue;
 
@@ -157,8 +222,16 @@ class Universe {
                     bodyB.position.x - bodyA.position.x,
                     bodyB.position.y - bodyA.position.y
                 );
+
+                //if (diff.mag() > 100) continue;
+
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
+                    if (bodyA.controller){
+                        newBody.attachController(bodyA.controller);
+                    } else if (bodyB.controller){
+                        newBody.attachController(bodyB.controller);
+                    }
                     this.addBody(newBody);
                     this.rmBody(idA);
                     this.rmBody(idB);
@@ -169,8 +242,8 @@ class Universe {
     }
 
     step(dt) {
-        this.computeForces();
         this.bodies.forEach(body => body.update(dt));
+        this.computeForces();
     }
 
     draw(ctx) {
@@ -178,7 +251,7 @@ class Universe {
     }
 }
 
-// ----------- View Frame --------------
+// ----------- View Frame ----------
 class ViewFrame {
     constructor(ctx) {
         this.ctx = ctx;
@@ -233,14 +306,17 @@ class SimulationApp {
         this.mouseWorld = new Vector(0, 0);
         this.mouseDown = false;
 
+        this.controller; 
+
         this.init();
     }
 
     init() {
         
         this.bindEvents();
-        //this.universe.addBody(new Body(25, new Vector(400, 400), new Vector(0, 0), "black"));
-        
+        this.universe.addBody(new Body(5, new Vector(400, 400), new Vector(0, 0), "black"));      
+        this.controller = new Controller(this.universe.bodies.get(1));
+
         for (let i = 1; i < 300; i++) {
             let size = Math.floor(Math.random()*3)+1;
             let pos = new Vector(400+this.getRand()*(600), 400+this.getRand()*(600));
@@ -249,7 +325,7 @@ class SimulationApp {
             let body = new Body(size, pos, vel, "black");
             this.universe.addBody(body);
         }
-        
+
         this.animate();
     }
 
@@ -261,6 +337,7 @@ class SimulationApp {
         this.canvas.addEventListener("click", this.handleClick.bind(this));
         this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
         this.canvas.addEventListener("wheel", this.handleMouseWheel.bind(this));
+        window.addEventListener("keydown", this.handleKeyPress.bind(this));
         this.canvas.addEventListener("mousedown", () => this.mouseDown = true);
         this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
 
@@ -278,7 +355,7 @@ class SimulationApp {
     }
 
     handleClick(event) {
-        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25);
+        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero out.
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
         this.universe.addBody(newBody);
     }
@@ -296,6 +373,20 @@ class SimulationApp {
         const centerX = event.clientX - rect.left;
         const centerY = event.clientY - rect.top;
         this.vframe.delScale(event.deltaY, centerX, centerY);
+    }
+
+    handleKeyPress(event) {
+        event.preventDefault();
+        switch(event.key) {
+            case "ArrowRight":
+                this.controller.turnRight();
+                break;
+            case "ArrowLeft":
+                this.controller.turnLeft();
+                break;
+            case "ArrowUp":
+                this.controller.thrust();
+        }
     }
 
     getMouseWorld(event) {
