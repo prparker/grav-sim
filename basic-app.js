@@ -102,6 +102,7 @@ class Body {
     attachController(ctrl) {
         this.controller = ctrl;
         this.controller.body = this;
+        this.color = this.controller.color;
     }
 
     static combine(bodyA, bodyB) {
@@ -127,39 +128,68 @@ class Controller {
         this.body = body;
         body.controller = this;
 
+        this.color = "green";
+        this.body.color = this.color;
+
         this.direction = new Vector(1, 0);
-        this.accel = new Vector(0, 0);
+        this.delacc = 0.1;
+
+        this.activeThrusters
     }
 
-    turnLeft() {
-        const dTheta = -Math.PI/16;
-        // const rotVec = new Vector(Math.cos(dTheta), Math.sin(dTheta));
-        this.direction = Vector.rotateVector(this.direction,dTheta);
+    moveUp() {
+        this.body.applyAcceleration(new Vector(0, -this.delacc));
     }
 
-    turnRight() {
-        const dTheta = Math.PI/16;
-        // const rotVec = new Vector(Math.cos(dTheta), Math.sin(dTheta));
-        this.direction = Vector.rotateVector(this.direction,dTheta);
+    moveDown() {
+        this.body.applyAcceleration(new Vector(0, this.delacc));
     }
 
-    thrust() {
-        this.body.applyAcceleration(Vector.multiply(this.direction,-1));
+    moveLeft() {
+        this.body.applyAcceleration(new Vector(-this.delacc, 0));
+    }
+
+    moveRight() {
+        this.body.applyAcceleration(new Vector(this.delacc, 0));
     }
 
     draw(ctx) {
-        const position = this.body.position;
-        const length = this.body.radius*1.5; 
-        ctx.beginPath();
-        ctx.moveTo(position.x,position.y);
-        ctx.lineTo(
-            position.x + this.direction.x*length,
-            position.y + this.direction.y*length
-        );
-        ctx.strokeStyle = "red";
-        // ctx.lineWidth = 30;
-        ctx.stroke();
+        const pos = this.body.position;
+        const r = this.body.radius;
+        const flameLength = r * 0.6;
+        const flameColor = "orange";
+
+        ctx.strokeStyle = flameColor;
+        ctx.lineWidth = 2;
+
+        if (this.activeThrusters?.up) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y + r);
+            ctx.lineTo(pos.x, pos.y + r + flameLength);
+            ctx.stroke();
+        }
+        if (this.activeThrusters?.down) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y - r);
+            ctx.lineTo(pos.x, pos.y - r - flameLength);
+            ctx.stroke();
+        }
+        if (this.activeThrusters?.left) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x + r, pos.y);
+            ctx.lineTo(pos.x + r + flameLength, pos.y);
+            ctx.stroke();
+        }
+        if (this.activeThrusters?.right) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x - r, pos.y);
+            ctx.lineTo(pos.x - r - flameLength, pos.y);
+            ctx.stroke();
+        }
     }
+
+
+
 }
 
 // ----------- Universe Simulation ----------
@@ -307,6 +337,7 @@ class SimulationApp {
         this.mouseDown = false;
 
         this.controller; 
+        this.keysDown = new Set();
 
         this.init();
     }
@@ -337,7 +368,7 @@ class SimulationApp {
         this.canvas.addEventListener("click", this.handleClick.bind(this));
         this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
         this.canvas.addEventListener("wheel", this.handleMouseWheel.bind(this));
-        window.addEventListener("keydown", this.handleKeyPress.bind(this));
+        window.addEventListener("keydown", this.updateController.bind(this));
         this.canvas.addEventListener("mousedown", () => this.mouseDown = true);
         this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
 
@@ -352,6 +383,15 @@ class SimulationApp {
         this.contactBox.addEventListener("change", () => {
             this.contact = this.contactBox.checked;
         });
+
+        window.addEventListener("keydown", (e) => {
+            this.keysDown.add(e.key);
+        });
+
+        window.addEventListener("keyup", (e) => {
+            this.keysDown.delete(e.key);
+        });
+
     }
 
     handleClick(event) {
@@ -375,19 +415,22 @@ class SimulationApp {
         this.vframe.delScale(event.deltaY, centerX, centerY);
     }
 
-    handleKeyPress(event) {
-        event.preventDefault();
-        switch(event.key) {
-            case "ArrowRight":
-                this.controller.turnRight();
-                break;
-            case "ArrowLeft":
-                this.controller.turnLeft();
-                break;
-            case "ArrowUp":
-                this.controller.thrust();
-        }
+    updateController() {
+        const ctrl = this.controller;
+
+        if (this.keysDown.has("ArrowUp")) ctrl.moveUp();
+        if (this.keysDown.has("ArrowDown")) ctrl.moveDown();
+        if (this.keysDown.has("ArrowLeft")) ctrl.moveLeft();
+        if (this.keysDown.has("ArrowRight")) ctrl.moveRight();
+
+        ctrl.activeThrusters = {
+            up: this.keysDown.has("ArrowUp"),
+            down: this.keysDown.has("ArrowDown"),
+            left: this.keysDown.has("ArrowLeft"),
+            right: this.keysDown.has("ArrowRight")
+        };
     }
+
 
     getMouseWorld(event) {
         const rect = this.canvas.getBoundingClientRect();
