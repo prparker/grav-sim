@@ -446,6 +446,8 @@ class SimulationApp {
 
         this.vframe.applyTransform();
 
+        this.updateController();
+
         this.universe.step(this.dt);
         this.universe.computeContact(this.contact);
         this.universe.draw(this.ctx);
