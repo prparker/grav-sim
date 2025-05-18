@@ -109,6 +109,8 @@ class Body {
             this.controller = ctrl;
             this.controller.body = this;
             this.color = this.controller.color;
+
+            this.controller.delacc = 0.05*(this.radius/5);
         }
     }
 
@@ -147,7 +149,7 @@ class Controller {
         this.body.color = this.color;
 
         this.direction = new Vector(1, 0);
-        this.delacc = 0.1;
+        this.delacc = 0.05;
 
         this.activeThrusters
     }
@@ -211,6 +213,8 @@ class Controller {
         this.body = bodyIn;
         this.body.controller = this;
         this.body.color = this.color;
+
+        this.delacc = 0.05*(this.body.radius/5);
     }
 
     static combine(bodyA, bodyB, newBody) {
@@ -258,7 +262,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 500) continue;
+                if (diff.mag() > 1000) continue;
 
                 const r3 = Math.pow(diff.mag(), 3);
                 if (r3 === 0) continue;
@@ -284,7 +288,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 100) continue;
+                //if (diff.mag() > 50) continue;
 
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
@@ -305,6 +309,41 @@ class Universe {
     draw(ctx) {
         this.bodies.forEach(body => body.draw(ctx));
     }
+
+    updateWorld(center, size, loadRadius, unloadRadius, loadBuffer = 1000, maxBodies = 300) {
+        // Unload bodies that are too far away
+        for (const [id, body] of this.bodies.entries()) {
+            const dist = Vector.subtract(body.position, center).mag();
+            if (dist > unloadRadius) {
+                this.bodies.delete(id);
+            }
+        }
+
+        // Add new bodies if needed
+        while (this.bodies.size < maxBodies) {
+            const angle = Math.random() * 2 * Math.PI;
+            const distanceFromCenter = loadRadius + Math.random() * loadBuffer;
+
+            const offset = new Vector(Math.cos(angle), Math.sin(angle));
+            const position = Vector.addition(center, Vector.multiply(offset, distanceFromCenter));
+
+            const velocity = new Vector(
+                (Math.random() - 0.5) * 2, // Range: -1 to 1
+                (Math.random() - 0.5) * 2
+            );
+
+            const radius = (Math.random() * size + 1); // Range: 1 to 4
+            const color = "black"; // You can randomize this too if desired
+
+            const newBody = new Body(radius, position, velocity, color);
+            const id = crypto.randomUUID();
+
+            this.bodies.set(id, newBody);
+        }
+    }
+
+
+
 }
 
 // ----------- View Frame ----------
@@ -376,9 +415,9 @@ class SimulationApp {
         this.universe.addBody(new Body(5, new Vector(400, 400), new Vector(0, 0), "black"));      
         this.controller = new Controller(this.universe.bodies.get(1));
 
-        for (let i = 1; i < 300; i++) {
-            let size = Math.floor(Math.random()*3)+1;
-            let pos = new Vector(400+this.getRand()*(600), 400+this.getRand()*(600));
+        for (let i = 1; i < 100; i++) {
+            let size = Math.floor(Math.random()*4)+1;
+            let pos = new Vector(400+this.getRand()*(1000), 400+this.getRand()*(1000));
             let vel = new Vector(this.getRand()*0.2, this.getRand()*0.2);
 
             let body = new Body(size, pos, vel, "black");
@@ -490,6 +529,12 @@ class SimulationApp {
 
         this.updateCamera()
         this.vframe.applyTransform();
+
+        if (this.controller?.body) {
+            const center = this.controller.body.position;
+            const size = this.controller.body.radius;
+            this.universe.updateWorld(center, size, 1500*(size/5)**(1/3), 3000*(size/5)**(1/3), 1500*(size/5)**(1/3)); // Tune radii
+        }
 
         this.universe.step(this.dt);
         this.universe.computeContact(this.contact);
