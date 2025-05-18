@@ -69,7 +69,7 @@ class Body {
         this.acceleration = new Vector(0, 0);
         this.color = color;
         this.mass = (1 / 3) * Math.PI * radius ** 3;
-        this.controller;
+        this.controller = null;
     }
 
     draw(ctx) {
@@ -99,10 +99,13 @@ class Body {
         this.acceleration.add(accel);
     }
 
-    attachController(ctrl) {
-        this.controller = ctrl;
-        this.controller.body = this;
-        this.color = this.controller.color;
+    attachController(ctrl) { 
+        if (ctrl) { 
+            this.color = "black";
+            this.controller = ctrl;
+            this.controller.body = this;
+            this.color = this.controller.color;
+        }
     }
 
     static combine(bodyA, bodyB) {
@@ -119,14 +122,18 @@ class Body {
         );
 
         const newRadius = ((3 * totalMass) / Math.PI) ** (1 / 3);
-        return new Body(newRadius, newPos, newVel, bodyA.color);
+        let newBody = new Body(newRadius, newPos, newVel, bodyA.color);
+        
+        Controller.combine(bodyA, bodyB, newBody);
+        return newBody; 
     }
 }
 
+// ----------- Controller Class ----------
 class Controller {
     constructor(body) {
         this.body = body;
-        body.controller = this;
+        this.body.controller = this;
 
         this.color = "green";
         this.body.color = this.color;
@@ -188,7 +195,23 @@ class Controller {
         }
     }
 
+    attachBody(bodyIn) {
+        if (this.body) {
+            this.body.controller = null;
+            this.body.color = "black";
+        }
+        this.body = bodyIn;
+        this.body.controller = this;
+        this.body.color = this.color;
+    }
 
+    static combine(bodyA, bodyB, newBody) {
+        if (bodyA.mass > bodyB.mass) {
+            newBody.attachController(bodyA.controller);
+        } else {
+            newBody.attachController(bodyB.controller)
+        }
+    }
 
 }
 
@@ -257,11 +280,6 @@ class Universe {
 
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
-                    if (bodyA.controller){
-                        newBody.attachController(bodyA.controller);
-                    } else if (bodyB.controller){
-                        newBody.attachController(bodyB.controller);
-                    }
                     this.addBody(newBody);
                     this.rmBody(idA);
                     this.rmBody(idB);
@@ -368,7 +386,7 @@ class SimulationApp {
         this.canvas.addEventListener("click", this.handleClick.bind(this));
         this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
         this.canvas.addEventListener("wheel", this.handleMouseWheel.bind(this));
-        window.addEventListener("keydown", this.updateController.bind(this));
+        //window.addEventListener("keydown", this.updateController.bind(this));
         this.canvas.addEventListener("mousedown", () => this.mouseDown = true);
         this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
 
@@ -397,6 +415,7 @@ class SimulationApp {
     handleClick(event) {
         const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero out.
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
+        this.controller.attachBody(newBody);
         this.universe.addBody(newBody);
     }
 
