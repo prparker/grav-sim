@@ -100,6 +100,10 @@ class Body {
     }
 
     attachController(ctrl) { 
+        if (this.controller) {
+            this.controller = null;
+            this.color = "black";
+        }
         if (ctrl) { 
             this.color = "black";
             this.controller = ctrl;
