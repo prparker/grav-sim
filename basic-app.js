@@ -126,9 +126,13 @@ class Body {
         );
 
         const newRadius = ((3 * totalMass) / Math.PI) ** (1 / 3);
-        let newBody = new Body(newRadius, newPos, newVel, bodyA.color);
-        
+
+        const color = bodyA.mass > bodyB.mass ? bodyA.color : bodyB.color;
+
+        let newBody = new Body(newRadius, newPos, newVel, color);
+
         Controller.combine(bodyA, bodyB, newBody);
+
         return newBody; 
     }
 }
@@ -361,6 +365,8 @@ class SimulationApp {
         this.controller; 
         this.keysDown = new Set();
 
+        this.followController = true;
+
         this.init();
     }
 
@@ -390,7 +396,6 @@ class SimulationApp {
         this.canvas.addEventListener("click", this.handleClick.bind(this));
         this.canvas.addEventListener("mousemove", this.handleMouseMove.bind(this));
         this.canvas.addEventListener("wheel", this.handleMouseWheel.bind(this));
-        //window.addEventListener("keydown", this.updateController.bind(this));
         this.canvas.addEventListener("mousedown", () => this.mouseDown = true);
         this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
 
@@ -403,7 +408,7 @@ class SimulationApp {
         });
 
         this.contactBox.addEventListener("change", () => {
-            this.contact = this.contactBox.checked;
+            this.followController = this.contactBox.checked;
         });
 
         window.addEventListener("keydown", (e) => {
@@ -454,7 +459,6 @@ class SimulationApp {
         };
     }
 
-
     getMouseWorld(event) {
         const rect = this.canvas.getBoundingClientRect();
         const screenX = event.clientX - rect.left;
@@ -463,13 +467,29 @@ class SimulationApp {
         return { x: world.x, y: world.y };
     }
 
+    updateCamera() {
+        if (this.followController && this.controller?.body) {
+            const bodyPos = this.controller.body.position;
+            const canvasCenter = new Vector(this.canvas.width / 2, this.canvas.height / 2);
+            this.vframe.origin = Vector.subtract(canvasCenter, Vector.multiply(bodyPos, this.vframe.scale));
+        }
+    }
+    
+    drawPreviewCircle() {
+        this.ctx.beginPath();
+        this.ctx.arc(this.mouseWorld.x, this.mouseWorld.y, this.clickRadius, 0, 2 * Math.PI);
+        this.ctx.fillStyle = "blue";
+        this.ctx.fill();
+    }
+
     animate() {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.vframe.applyTransform();
-
         this.updateController();
+
+        this.updateCamera()
+        this.vframe.applyTransform();
 
         this.universe.step(this.dt);
         this.universe.computeContact(this.contact);
@@ -480,12 +500,6 @@ class SimulationApp {
         requestAnimationFrame(() => this.animate());
     }
 
-    drawPreviewCircle() {
-        this.ctx.beginPath();
-        this.ctx.arc(this.mouseWorld.x, this.mouseWorld.y, this.clickRadius, 0, 2 * Math.PI);
-        this.ctx.fillStyle = "blue";
-        this.ctx.fill();
-    }
 }
 
 // ----------- Initialize App ----------
