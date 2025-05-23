@@ -332,7 +332,7 @@ class Universe {
                 (Math.random() - 0.5) * 2
             );
 
-            const radius = (Math.random() * (size/2) + 1); // Range: 1 to 4
+            const radius = (Math.random() * (3) + 1); // Range: 1 to 4
             const color = "black"; // You can randomize this too if desired
 
             const newBody = new Body(radius, position, velocity, color);
