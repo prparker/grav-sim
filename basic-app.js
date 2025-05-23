@@ -262,7 +262,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                if (diff.mag() > 1000) continue;
+                //if (diff.mag() > 1000) continue;
 
                 const r3 = Math.pow(diff.mag(), 3);
                 if (r3 === 0) continue;
@@ -288,7 +288,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 50) continue;
+                if (diff.mag() > 50) continue;
 
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
@@ -332,7 +332,7 @@ class Universe {
                 (Math.random() - 0.5) * 2
             );
 
-            const radius = (Math.random() * (3) + 1); // Range: 1 to 4
+            const radius = (Math.random() * (size) + 1); // Range: 1 to 4
             const color = "black"; // You can randomize this too if desired
 
             const newBody = new Body(radius, position, velocity, color);
@@ -533,7 +533,7 @@ class SimulationApp {
         if (this.controller?.body) {
             const center = this.controller.body.position;
             const size = this.controller.body.radius;
-            this.universe.updateWorld(center, size, 1500*(size/5)**(1/3), 3000*(size/5)**(1/3), 1500*(size/5)**(1/3)); // Tune radii
+            this.universe.updateWorld(center, size, 1500*(size/5)**(2/3), 10000*(size/5)**(2/3), 1500*(size/5)**(2/3)); // Tune radii
         }
 
         this.universe.step(this.dt);
