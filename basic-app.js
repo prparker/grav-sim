@@ -542,8 +542,28 @@ class SimulationApp {
 
         if (this.mouseDown) this.drawPreviewCircle();
 
+        this.drawHUD();
+
         requestAnimationFrame(() => this.animate());
     }
+
+    drawHUD() {
+        if (!this.controller?.body) return;
+
+        const radius = this.controller.body.radius.toFixed(2); // Limit to 2 decimal places
+
+        // Reset any canvas transform first
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        // Styling
+        this.ctx.font = "16px Arial";
+        this.ctx.fillStyle = "black";
+        this.ctx.textAlign = "right";
+
+        // Draw in the top-right corner
+        this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20);
+    }
+
 
 }
 
