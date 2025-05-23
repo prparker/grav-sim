@@ -485,17 +485,17 @@ class SimulationApp {
     updateController() {
         const ctrl = this.controller;
 
-        if (this.keysDown.has("ArrowUp")) ctrl.moveUp();
-        if (this.keysDown.has("ArrowDown")) ctrl.moveDown();
-        if (this.keysDown.has("ArrowLeft")) ctrl.moveLeft();
-        if (this.keysDown.has("ArrowRight")) ctrl.moveRight();
+        if (this.keysDown.has("ArrowUp") || this.keysDown.has("w")) ctrl.moveUp();
+        if (this.keysDown.has("ArrowDown") || this.keysDown.has("s")) ctrl.moveDown();
+        if (this.keysDown.has("ArrowLeft") || this.keysDown.has("a")) ctrl.moveLeft();
+        if (this.keysDown.has("ArrowRight") || this.keysDown.has("d")) ctrl.moveRight();
 
         ctrl.activeThrusters = {
-            up: this.keysDown.has("ArrowUp"),
-            down: this.keysDown.has("ArrowDown"),
-            left: this.keysDown.has("ArrowLeft"),
-            right: this.keysDown.has("ArrowRight")
-        };
+            up: this.keysDown.has("ArrowUp") || this.keysDown.has("w"),
+            down: this.keysDown.has("ArrowDown") || this.keysDown.has("s"),
+            left: this.keysDown.has("ArrowLeft") || this.keysDown.has("a"),
+            right: this.keysDown.has("ArrowRight") || this.keysDown.has("d")
+       };
     }
 
     getMouseWorld(event) {
