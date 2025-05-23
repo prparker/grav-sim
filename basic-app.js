@@ -262,7 +262,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 1000) continue;
+                if (diff.mag() > 1000) continue;
 
                 const r3 = Math.pow(diff.mag(), 3);
                 if (r3 === 0) continue;
@@ -309,6 +309,39 @@ class Universe {
     draw(ctx) {
         this.bodies.forEach(body => body.draw(ctx));
     }
+
+    updateWorld(center, size, loadRadius, unloadRadius, loadBuffer = 1000, maxBodies = 300) {
+        // Unload bodies that are too far away
+        for (const [id, body] of this.bodies.entries()) {
+            const dist = Vector.subtract(body.position, center).mag();
+            if (dist > unloadRadius) {
+                this.bodies.delete(id);
+            }
+        }
+
+        // Add new bodies if needed
+        while (this.bodies.size < maxBodies) {
+            const angle = Math.random() * 2 * Math.PI;
+            const distanceFromCenter = loadRadius + Math.random() * loadBuffer;
+
+            const offset = new Vector(Math.cos(angle), Math.sin(angle));
+            const position = Vector.addition(center, Vector.multiply(offset, distanceFromCenter));
+
+            const velocity = new Vector(
+                (Math.random() - 0.5) * 2, // Range: -1 to 1
+                (Math.random() - 0.5) * 2
+            );
+
+            const radius = (Math.random() * size + 1); // Range: 1 to 4
+            const color = "black"; // You can randomize this too if desired
+
+            const newBody = new Body(radius, position, velocity, color);
+            const id = crypto.randomUUID();
+
+            this.bodies.set(id, newBody);
+        }
+    }
+
 
 
 }
@@ -428,7 +461,7 @@ class SimulationApp {
     }
 
     handleClick(event) {
-        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.5); // TODO: Zero out.
+        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero out.
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
         this.controller.attachBody(newBody);
         this.universe.addBody(newBody);
@@ -496,6 +529,12 @@ class SimulationApp {
 
         this.updateCamera()
         this.vframe.applyTransform();
+
+        if (this.controller?.body) {
+            const center = this.controller.body.position;
+            const size = this.controller.body.radius;
+            this.universe.updateWorld(center, size, 1500*(size/5)**(1/3), 3000*(size/5)**(1/3), 1500*(size/5)**(1/3)); // Tune radii
+        }
 
         this.universe.step(this.dt);
         this.universe.computeContact(this.contact);
