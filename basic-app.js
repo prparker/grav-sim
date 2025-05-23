@@ -288,7 +288,7 @@ class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                if (diff.mag() > 50) continue;
+                //if (diff.mag() > 50) continue;
 
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
