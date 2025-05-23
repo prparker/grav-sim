@@ -379,8 +379,7 @@ class SimulationApp {
     init() {
         
         this.bindEvents();
-        this.universe.addBody(new Body(5, new Vector(400, 400), new Vector(0, 0), "black"));      
-        this.controller = new Controller(this.universe.bodies.get(1));
+        //this.universe.addBody(new Body(5, new Vector(400, 400), new Vector(0, 0), "black"));      
 
         for (let i = 1; i < 100; i++) {
             let size = Math.floor(Math.random()*4)+1;
@@ -430,7 +429,8 @@ class SimulationApp {
     handleClick(event) {
         const velocity = Vector.multiply(this.mouseWorldSpeed, 0.5); // TODO: Zero out.
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
-        this.controller.attachBody(newBody);
+        this.controller = new Controller(newBody);
+        // this.controller.attachBody(newBody);
         this.universe.addBody(newBody);
     }
 
@@ -452,16 +452,16 @@ class SimulationApp {
     updateController() {
         const ctrl = this.controller;
 
-        if (this.keysDown.has("ArrowUp")) ctrl.moveUp();
-        if (this.keysDown.has("ArrowDown")) ctrl.moveDown();
-        if (this.keysDown.has("ArrowLeft")) ctrl.moveLeft();
-        if (this.keysDown.has("ArrowRight")) ctrl.moveRight();
+        if (this.keysDown.has("ArrowUp") || this.keysDown.has("w")) ctrl.moveUp();
+        if (this.keysDown.has("ArrowDown") || this.keysDown.has("s")) ctrl.moveDown();
+        if (this.keysDown.has("ArrowLeft") || this.keysDown.has("a")) ctrl.moveLeft();
+        if (this.keysDown.has("ArrowRight") || this.keysDown.has("d")) ctrl.moveRight();
 
         ctrl.activeThrusters = {
-            up: this.keysDown.has("ArrowUp"),
-            down: this.keysDown.has("ArrowDown"),
-            left: this.keysDown.has("ArrowLeft"),
-            right: this.keysDown.has("ArrowRight")
+            up: this.keysDown.has("ArrowUp") || this.keysDown.has("w"),
+            down: this.keysDown.has("ArrowDown") || this.keysDown.has("s"),
+            left: this.keysDown.has("ArrowLeft") || this.keysDown.has("a"),
+            right: this.keysDown.has("ArrowRight") || this.keysDown.has("d")
         };
     }
 
@@ -492,7 +492,7 @@ class SimulationApp {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        this.updateController();
+        if (this.controller) {this.updateController();}
 
         this.updateCamera()
         this.vframe.applyTransform();
