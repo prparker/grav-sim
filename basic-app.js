@@ -327,13 +327,25 @@ class Universe {
             const offset = new Vector(Math.cos(angle), Math.sin(angle));
             const position = Vector.addition(center, Vector.multiply(offset, distanceFromCenter));
 
-            const velocity = new Vector(
-                (Math.random() - 0.5) * 2, // Range: -1 to 1
-                (Math.random() - 0.5) * 2
-            );
+            // const velocity = new Vector(
+            //     (Math.random() - 0.5) * 2, // Range: -1 to 1
+            //     (Math.random() - 0.5) * 2
+            // );
+
+            // const velocity = new Vector(
+            //     (position.y)/position.mag(), // Range: -1 to 1
+            //     (-position.x)/position.mag()
+            // );
+
+            // (y, -x)
 
             const radius = (Math.random() * (size) + 1); // Range: 1 to 4
             const color = "black"; // You can randomize this too if desired
+
+            const velocity = new Vector(
+                (position.y)/position.mag()*(radius/5), // Range: -1 to 1
+                (-position.x)/position.mag()*(radius/5)
+            );
 
             const newBody = new Body(radius, position, velocity, color);
             const id = crypto.randomUUID();
@@ -357,7 +369,7 @@ class ViewFrame {
     delScale(delta, centerX, centerY) {
         const worldCenterBefore = this.screenToWorld(centerX, centerY);
         this.scale *= Math.exp(-delta * 0.001);
-        this.scale = Math.max(this.scale, 0.01);
+        this.scale = Math.max(this.scale, 0.001);
         const newOffset = Vector.multiply(worldCenterBefore, this.scale);
         this.origin = new Vector(centerX - newOffset.x, centerY - newOffset.y);
     }
