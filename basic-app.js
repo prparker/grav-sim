@@ -59,34 +59,28 @@ class SimulationApp {
         this.mouseWorld = new Vector(0, 0);
         this.mouseDown = false;
 
-        this.controller; 
+        this.controller;
         this.keysDown = new Set();
-
         this.followController = true;
 
         this.init();
     }
 
     init() {
-        
         this.bindEvents();
-        this.universe.addBody(new Body(5, new Vector(400, 400), new Vector(0, 0), "black"));      
-        this.controller = new Controller(this.universe.bodies.get(1));
 
+        const mainBody = new Body(5, new Vector(400, 400), new Vector(0, 0), "black");
+        this.universe.addBody(mainBody);
+        this.controller = new Controller(mainBody);
         for (let i = 1; i < 100; i++) {
             let size = Math.floor(Math.random()*4)+1;
             let pos = new Vector(400+this.getRand()*(1000), 400+this.getRand()*(1000));
             let vel = new Vector(this.getRand()*0.2, this.getRand()*0.2);
-
             let body = new Body(size, pos, vel, "black");
             this.universe.addBody(body);
         }
 
         this.animate();
-    }
-
-    getRand() { 
-        return (Math.random() - 0.5)*2;
     }
 
     bindEvents() {
@@ -115,11 +109,11 @@ class SimulationApp {
         window.addEventListener("keyup", (e) => {
             this.keysDown.delete(e.key);
         });
-
     }
 
+    // -------- Event Handlers --------
     handleClick(event) {
-        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero out.
+        const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero-out
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
         this.controller.attachBody(newBody);
         this.universe.addBody(newBody);
@@ -140,6 +134,15 @@ class SimulationApp {
         this.vframe.delScale(event.deltaY, centerX, centerY);
     }
 
+    getMouseWorld(event) {
+        const rect = this.canvas.getBoundingClientRect();
+        const screenX = event.clientX - rect.left;
+        const screenY = event.clientY - rect.top;
+        const world = this.vframe.screenToWorld(screenX, screenY);
+        return { x: world.x, y: world.y };
+    }
+
+    // -------- Controls --------
     updateController() {
         const ctrl = this.controller;
 
@@ -153,17 +156,10 @@ class SimulationApp {
             down: this.keysDown.has("ArrowDown") || this.keysDown.has("s"),
             left: this.keysDown.has("ArrowLeft") || this.keysDown.has("a"),
             right: this.keysDown.has("ArrowRight") || this.keysDown.has("d")
-       };
+        };
     }
 
-    getMouseWorld(event) {
-        const rect = this.canvas.getBoundingClientRect();
-        const screenX = event.clientX - rect.left;
-        const screenY = event.clientY - rect.top;
-        const world = this.vframe.screenToWorld(screenX, screenY);
-        return { x: world.x, y: world.y };
-    }
-
+    // -------- Camera / View --------
     updateCamera() {
         if (this.followController && this.controller?.body) {
             const bodyPos = this.controller.body.position;
@@ -171,7 +167,7 @@ class SimulationApp {
             this.vframe.origin = Vector.subtract(canvasCenter, Vector.multiply(bodyPos, this.vframe.scale));
         }
     }
-    
+
     drawPreviewCircle() {
         this.ctx.beginPath();
         this.ctx.arc(this.mouseWorld.x, this.mouseWorld.y, this.clickRadius, 0, 2 * Math.PI);
@@ -179,19 +175,32 @@ class SimulationApp {
         this.ctx.fill();
     }
 
+    drawHUD() {
+        if (!this.controller?.body) return;
+
+        const radius = this.controller.body.radius.toFixed(2);
+
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.font = "16px Arial";
+        this.ctx.fillStyle = "black";
+        this.ctx.textAlign = "right";
+        this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20);
+    }
+
+    // -------- Main Loop --------
     animate() {
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.updateController();
-
-        this.updateCamera()
+        this.updateCamera();
         this.vframe.applyTransform();
 
         if (this.controller?.body) {
             const center = this.controller.body.position;
             const size = this.controller.body.radius;
-            this.universe.updateWorld(center, size, 1500*(size/5)**(2/3), 10000*(size/5)**(2/3), 1500*(size/5)**(2/3)); // Tune radii
+            const scaleFactor = (size / 5) ** (2 / 3);
+            this.universe.updateWorld(center, size, 1500 * scaleFactor, 10000 * scaleFactor, 1500 * scaleFactor);
         }
 
         this.universe.step(this.dt);
@@ -199,31 +208,17 @@ class SimulationApp {
         this.universe.draw(this.ctx);
 
         if (this.mouseDown) this.drawPreviewCircle();
-
         this.drawHUD();
 
         requestAnimationFrame(() => this.animate());
     }
 
-    drawHUD() {
-        if (!this.controller?.body) return;
-
-        const radius = this.controller.body.radius.toFixed(2); // Limit to 2 decimal places
-
-        // Reset any canvas transform first
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-        // Styling
-        this.ctx.font = "16px Arial";
-        this.ctx.fillStyle = "black";
-        this.ctx.textAlign = "right";
-
-        // Draw in the top-right corner
-        this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20);
+    // -------- Utility --------
+    getRand() {
+        return (Math.random() - 0.5) * 2;
     }
-
-
 }
+
 
 // ----------- Initialize App ----------
 window.onload = () => {
