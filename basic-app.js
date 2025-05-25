@@ -51,7 +51,7 @@ class SimulationApp {
         this.contactBox = document.getElementById(contactBoxId);
 
         this.universe = new Universe();
-        this.dt = parseFloat(this.timeSlider.value || 1);
+        this.dt = parseFloat(1);
         this.clickRadius = parseFloat(this.sizeSlider.value || 5);
         this.contact = true;
 
@@ -69,16 +69,20 @@ class SimulationApp {
     init() {
         this.bindEvents();
 
-        const mainBody = new Body(5, new Vector(400, 400), new Vector(0, 0), "black");
-        this.universe.addBody(mainBody);
-        this.controller = new Controller(mainBody);
-        for (let i = 1; i < 100; i++) {
-            let size = Math.floor(Math.random()*4)+1;
-            let pos = new Vector(400+this.getRand()*(1000), 400+this.getRand()*(1000));
-            let vel = new Vector(this.getRand()*0.2, this.getRand()*0.2);
-            let body = new Body(size, pos, vel, "black");
-            this.universe.addBody(body);
-        }
+        // const mainBody = new Body(5, new Vector(400, 400), new Vector(0, 0), "black");
+        // this.universe.addBody(mainBody);
+        // this.controller = new Controller(mainBody);
+        // for (let i = 1; i < 100; i++) {
+        //     let size = Math.floor(Math.random()*4)+1;
+        //     let pos = new Vector(400+this.getRand()*(1000), 400+this.getRand()*(1000));
+        //     let vel = new Vector(this.getRand()*0.2, this.getRand()*0.2);
+        //     let body = new Body(size, pos, vel, "black");
+        //     this.universe.addBody(body);
+        // }
+
+        //this.universe.init();
+
+        this.controller = new Controller(this.universe.bodies.get(10));
 
         this.animate();
     }
@@ -91,7 +95,8 @@ class SimulationApp {
         this.canvas.addEventListener("mouseup", () => this.mouseDown = false);
 
         this.timeSlider.addEventListener("input", () => {
-            this.dt = parseFloat(this.timeSlider.value);
+            const sliderValue = parseFloat(this.timeSlider.value);
+            this.dt = Math.pow(1.5, sliderValue - 10);
         });
 
         this.sizeSlider.addEventListener("input", () => {
@@ -115,7 +120,11 @@ class SimulationApp {
     handleClick(event) {
         const velocity = Vector.multiply(this.mouseWorldSpeed, 0.25); // TODO: Zero-out
         const newBody = new Body(this.clickRadius, this.mouseWorld, velocity, "blue");
-        this.controller.attachBody(newBody);
+        if (this.controller) {
+            this.controller.attachBody(newBody);
+        } else {
+            this.controller = new Controller(newBody);
+        }
         this.universe.addBody(newBody);
     }
 
@@ -144,6 +153,7 @@ class SimulationApp {
 
     // -------- Controls --------
     updateController() {
+        if (!this.controller) {return};
         const ctrl = this.controller;
 
         if (this.keysDown.has("ArrowUp") || this.keysDown.has("w")) ctrl.moveUp();
@@ -175,17 +185,133 @@ class SimulationApp {
         this.ctx.fill();
     }
 
+    // drawHUD() {
+    //     if (!this.controller?.body) return;
+
+    //     const radius = this.controller.body.radius.toFixed(2);
+
+    //     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    //     this.ctx.font = "16px Arial";
+    //     this.ctx.fillStyle = "black";
+    //     this.ctx.textAlign = "right";
+    //     this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20);
+    // }
+
     drawHUD() {
-        if (!this.controller?.body) return;
-
-        const radius = this.controller.body.radius.toFixed(2);
-
         this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.font = "16px Arial";
         this.ctx.fillStyle = "black";
         this.ctx.textAlign = "right";
-        this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20);
+
+        // Print size
+        if (this.controller?.body) {
+            const radius = this.controller.body.radius.toFixed(2);
+            this.ctx.fillText(`Size: ${radius}`, this.canvas.width - 10, 20)
+        };
+
+        // Track center mass
+        let tracked_body = this.universe.getMassive();
+        const bodyScreenPos = this.vframe.worldToScreen(
+            tracked_body.position.x,
+            tracked_body.position.y
+        );
+
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+
+        // If body is off-screen
+        const isOffscreen =
+            bodyScreenPos.x < 0 || bodyScreenPos.x > canvasWidth ||
+            bodyScreenPos.y < 0 || bodyScreenPos.y > canvasHeight;
+
+        if (isOffscreen) {
+            const center = new Vector(canvasWidth / 2, canvasHeight / 2);
+            const dir = Vector.subtract(bodyScreenPos, center).normalize();
+
+            // Find intersection with canvas edge
+            const margin = 10;
+            const edgePoint = this.getEdgeIntersection(center, dir, canvasWidth, canvasHeight, margin);
+
+            // Draw arrow toward body
+            const arrowTip = edgePoint;
+            const arrowTail = Vector.subtract(arrowTip, Vector.multiply(dir, 20)); // 20px long
+
+            this.drawArrow(arrowTail, arrowTip);
+        }
+
     }
+
+    getEdgeIntersection(center, dir, width, height, margin = 10) {
+        const edges = {
+            left: margin,
+            right: width - margin,
+            top: margin,
+            bottom: height - margin,
+        };
+
+        let tMin = Infinity;
+        let intersection = null;
+
+        // Check each canvas boundary
+        // Vertical edges
+        if (dir.x !== 0) {
+            for (let xEdge of [edges.left, edges.right]) {
+                const t = (xEdge - center.x) / dir.x;
+                if (t > 0) {
+                    const y = center.y + t * dir.y;
+                    if (y >= edges.top && y <= edges.bottom && t < tMin) {
+                        tMin = t;
+                        intersection = new Vector(xEdge, y);
+                    }
+                }
+            }
+        }
+
+        // Horizontal edges
+        if (dir.y !== 0) {
+            for (let yEdge of [edges.top, edges.bottom]) {
+                const t = (yEdge - center.y) / dir.y;
+                if (t > 0) {
+                    const x = center.x + t * dir.x;
+                    if (x >= edges.left && x <= edges.right && t < tMin) {
+                        tMin = t;
+                        intersection = new Vector(x, yEdge);
+                    }
+                }
+            }
+        }
+
+        return intersection ?? center;
+    }
+
+    drawArrow(from, to, color = "black") {
+        const ctx = this.ctx;
+        const headLength = 10;
+
+        const dx = to.x - from.x;
+        const dy = to.y - from.y;
+        const angle = Math.atan2(dy, dx);
+
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Arrowhead
+        ctx.beginPath();
+        ctx.moveTo(to.x, to.y);
+        ctx.lineTo(to.x - headLength * Math.cos(angle - Math.PI / 6),
+                    to.y - headLength * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(to.x - headLength * Math.cos(angle + Math.PI / 6),
+                    to.y - headLength * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(to.x, to.y);
+        ctx.fillStyle = color;
+        ctx.fill();
+    }
+
+
 
     // -------- Main Loop --------
     animate() {
@@ -196,12 +322,12 @@ class SimulationApp {
         this.updateCamera();
         this.vframe.applyTransform();
 
-        if (this.controller?.body) {
-            const center = this.controller.body.position;
-            const size = this.controller.body.radius;
-            const scaleFactor = (size / 5) ** (2 / 3);
-            this.universe.updateWorld(center, size, 1500 * scaleFactor, 10000 * scaleFactor, 1500 * scaleFactor);
-        }
+        // if (this.controller?.body) {
+        //     const center = this.controller.body.position;
+        //     const size = this.controller.body.radius;
+        //     const scaleFactor = (size / 5) ** (2 / 3);
+        //     this.universe.updateWorld(center, size, 1500 * scaleFactor, 10000 * scaleFactor, 1500 * scaleFactor);
+        // }
 
         this.universe.step(this.dt);
         this.universe.computeContact(this.contact);
@@ -211,11 +337,6 @@ class SimulationApp {
         this.drawHUD();
 
         requestAnimationFrame(() => this.animate());
-    }
-
-    // -------- Utility --------
-    getRand() {
-        return (Math.random() - 0.5) * 2;
     }
 }
 

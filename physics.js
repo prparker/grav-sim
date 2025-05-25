@@ -1,4 +1,4 @@
-import { Vector }       from "./utils.js";
+import { Vector, getRand }       from "./utils.js";
 
 // ----------- Physics Body Class ----------
 export class Body {
@@ -44,14 +44,7 @@ export class Body {
             this.controller = null;
             this.color = "black";
         }
-        if (ctrl) { 
-            this.color = "black";
-            this.controller = ctrl;
-            this.controller.body = this;
-            this.color = this.controller.color;
-
-            this.controller.delacc = 0.05*(this.radius/5);
-        }
+        if (ctrl) { ctrl.attachBody(this) }
     }
 
     static combine(bodyA, bodyB) {
@@ -76,6 +69,14 @@ export class Body {
         Controller.combine(bodyA, bodyB, newBody);
 
         return newBody; 
+    }
+
+    static radius2mass(radius) {
+        return (1 / 3) * Math.PI * radius ** 3;
+    }
+
+    static mass2radius (mass) {
+        return 3 / Math.PI * mass ** (1/3);
     }
 }
 
@@ -154,7 +155,7 @@ export class Controller {
         this.body.controller = this;
         this.body.color = this.color;
 
-        this.delacc = 0.05*(this.body.radius/5);
+        this.delacc = 0.075///this.body.radius;//*(this.body.radius/5);
     }
 
     static combine(bodyA, bodyB, newBody) {
@@ -171,14 +172,23 @@ export class Controller {
 export class Universe {
     static G = 0.1; // Gravity constant
     #numBodies = 0;
+    #mostMassive = new Body(0, new Vector(0,0), new Vector(0,0)); 
 
     constructor() {
         this.bodies = new Map();
+        this.init();
+    }
+
+    getMassive() {
+        return this.#mostMassive;
     }
 
     addBody(body) {
         this.#numBodies++;
         this.bodies.set(this.#numBodies, body);
+        if (body.mass > this.#mostMassive.mass) {
+            this.#mostMassive = this.bodies.get(this.#numBodies);
+        }
     }
 
     rmBody(bodyID) {
@@ -202,7 +212,9 @@ export class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 1000) continue;
+                // if (idA != 1) {
+                //     if (diff.mag() > 10000) continue;
+                // }
 
                 const r3 = Math.pow(diff.mag(), 3);
                 if (r3 === 0) continue;
@@ -228,7 +240,7 @@ export class Universe {
                     bodyB.position.y - bodyA.position.y
                 );
 
-                //if (diff.mag() > 50) continue;
+                // if (diff.mag() > 50) continue;
 
                 if (diff.mag() <= (bodyA.radius + bodyB.radius * (4 / 7))) {
                     const newBody = Body.combine(bodyA, bodyB);
@@ -294,6 +306,32 @@ export class Universe {
         }
     }
 
+    init(){
+        const mainBody = new Body(350, new Vector(0, 0), new Vector(0, 0), "black");
+        this.addBody(mainBody);
+        // for (let i = 1; i < 100; i++) {
+        //     let size = Math.floor(Math.random()*4)+1;
+        //     let pos = new Vector(400+getRand()*(1000), 400+getRand()*(1000));
+        //     let vel = new Vector(getRand()*0.2, getRand()*0.2);
+        //     let body = new Body(size, pos, vel, "black");
+        //     this.addBody(body);
+        // }
+        for (let i = 1; i < 500; i++){
+            const angle = Math.random() * 2 * Math.PI;
+            let velocity = 25 + getRand()*5;
+            let radius = (Universe.G * mainBody.mass / (velocity ** 2));
+            let ur = new Vector(Math.cos(angle), Math.sin(angle));
+            let uv = new Vector(-Math.sin(angle), Math.cos(angle));
+
+            const sat = new Body(15 + getRand()*5, Vector.multiply(ur,radius), Vector.multiply(uv,velocity), "black");
+            this.addBody(sat)
+        }
+        // let vel_circ = 30;
+        // let vel_pos = (Universe.G * mainBody.mass / (vel_circ ** 2));
+
+        // const sat = new Body(25, new Vector(vel_pos, 0), new Vector(0, vel_circ), "black");
+        // this.addBody(sat)
+    }
 
 
 }

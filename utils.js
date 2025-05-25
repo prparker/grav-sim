@@ -28,6 +28,14 @@ export class Vector {
         return Math.sqrt(this.x ** 2 + this.y ** 2);
     }
 
+    normalize() {
+        const mag = this.mag();
+        if (mag === 0) return this;  
+        this.x /= mag;
+        this.y /= mag;
+        return this; // Allow chaining
+    }
+
     static addition(v1, v2) {
         return new Vector(v1.x + v2.x, v1.y + v2.y);
     }
@@ -55,6 +63,11 @@ export class Vector {
         vec.x * cos - vec.y * sin,
         vec.x * sin + vec.y * cos
     );
+
 }
 
+}
+
+export function getRand() {
+    return (Math.random() - 0.5) * 2;
 }
